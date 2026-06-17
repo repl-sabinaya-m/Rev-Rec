@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Revenue Recognition Validator</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<style>
+  /* ── Reset & Base ─────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-page:        #f4f4f2;
+    --bg-primary:     #ffffff;
+    --bg-secondary:   #f0efea;
+    --bg-tertiary:    #e8e7e1;
+    --bg-info:        #e6f1fb;
+    --bg-success:     #eaf3de;
+    --bg-warning:     #faeeda;
+    --bg-danger:      #fcebeb;
+    --text-primary:   #1a1a18;
+    --text-secondary: #5f5e5a;
+    --text-tertiary:  #888780;
+    --text-info:      #185fa5;
+    --text-success:   #3b6d11;
+    --text-warning:   #854f0b;
+    --text-danger:    #a32d2d;
+    --border-light:   rgba(0,0,0,0.10);
+    --border-mid:     rgba(0,0,0,0.18);
+    --border-info:    rgba(24,95,165,0.30);
+    --border-warning: rgba(133,79,11,0.30);
+    --border-success: rgba(59,109,17,0.30);
+    --border-danger:  rgba(163,45,45,0.30);
+    --radius-sm:      6px;
+    --radius-md:      8px;
+    --radius-lg:      12px;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-page:        #1a1a18;
+      --bg-primary:     #242422;
+      --bg-secondary:   #2c2c2a;
+      --bg-tertiary:    #343432;
+      --bg-info:        #0c2a45;
+      --bg-success:     #152509;
+      --bg-warning:     #2e1c04;
+      --bg-danger:      #2c0f0f;
+      --text-primary:   #f0efea;
+      --text-secondary: #b4b2a9;
+      --text-tertiary:  #888780;
+      --text-info:      #85b7eb;
+      --text-success:   #97c459;
+      --text-warning:   #ef9f27;
+      --text-danger:    #f09595;
+      --border-light:   rgba(255,255,255,0.08);
+      --border-mid:     rgba(255,255,255,0.14);
+      --border-info:    rgba(133,183,235,0.25);
+      --border-warning: rgba(239,159,39,0.25);
+      --border-success: rgba(151,196,89,0.25);
+      --border-danger:  rgba(240,149,149,0.25);
+    }
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg-page);
+    color: var(--text-primary);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Layout ───────────────────────────────────────────── */
+  .app-header {
+    background: var(--bg-primary);
+    border-bottom: 0.5px solid var(--border-mid);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .app-header h1 { font-size: 17px; font-weight: 600; }
+  .app-header .sub { font-size: 12px; color: var(--text-tertiary); }
+  .app-body { max-width: 900px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  /* ── Cards & Sections ─────────────────────────────────── */
+  .card {
+    background: var(--bg-primary);
+    border: 0.5px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--text-tertiary);
+    margin-bottom: 12px;
+  }
+  .divider { height: 0.5px; background: var(--border-light); margin: 20px 0; }
+
+  /* ── Form Elements ────────────────────────────────────── */
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+  input[type=number], input[type=text], input[type=date], select {
+    width: 100%;
+    padding: 7px 10px;
+    font-size: 13px;
+    border: 0.5px solid var(--border-mid);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font);
+  }
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--text-info);
+    box-shadow: 0 0 0 2px rgba(24,95,165,.12);
+  }
+  input[readonly] { cursor: default; }
+  .note { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+  /* ── Grid helpers ─────────────────────────────────────── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 10px; }
+  @media(max-width:600px) { .grid-2,.grid-3 { grid-template-columns:1fr; } }
+
+  /* ── Buttons ──────────────────────────────────────────── */
+  .btn {
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 0.5px solid var(--border-mid);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font);
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--bg-secondary); }
+  .btn-primary {
+    background: var(--text-info);
+    color: #fff;
+    border-color: transparent;
+  }
+  .btn-primary:hover { opacity: .9; }
+
+  /* ── Badges / Chips ───────────────────────────────────── */
+  .badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+  }
+  .badge-success { background: var(--bg-success); color: var(--text-success); }
+  .badge-inactive { background: var(--bg-secondary); color: var(--text-tertiary); }
+  .badge-info { background: var(--bg-info); color: var(--text-info); }
+  .badge-warning { background: var(--bg-warning); color: var(--text-warning); }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    border: 0.5px solid var(--border-light);
+    color: var(--text-secondary);
+  }
+  .chip strong { color: var(--text-primary); font-weight: 600; }
+  .chip.info { background: var(--bg-info); border-color: var(--border-info); color: var(--text-info); }
+  .chip.info strong { color: var(--text-info); }
+  .chip.warning { background: var(--bg-warning); border-color: var(--border-warning); color: var(--text-warning); }
+  .chip.warning strong { color: var(--text-warning); }
+  .chip.success { background: var(--bg-success); border-color: var(--border-success); color: var(--text-success); }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+  /* ── Currency Banner ──────────────────────────────────── */
+  .currency-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 0.5px solid var(--border-light);
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .currency-banner .pill {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    border: 0.5px solid var(--border-mid);
+    color: var(--text-primary);
+  }
+  .currency-banner .rate-tag { font-size: 12px; color: var(--text-secondary); }
+
+  /* ── Date info bar ────────────────────────────────────── */
+  .date-info-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+  /* ── Resource cards ───────────────────────────────────── */
+  .res-card {
+    border: 0.5px solid var(--border-mid);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin-bottom: 12px;
+    background: var(--bg-primary);
+  }
+  .res-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .res-name-wrap { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 160px; }
+  .res-index {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    border: 0.5px solid var(--border-mid);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+  }
+  .res-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+  /* Schedule */
+  .schedule-box {
+    background: var(--bg-secondary);
+    border: 0.5px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  .schedule-box-title { font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em; }
+  .day-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; margin-bottom: 8px; }
+  .day-btn {
+    padding: 6px 2px;
+    border: 0.5px solid var(--border-mid);
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    user-select: none;
+    line-height: 1.3;
+  }
+  .day-btn.on { background: var(--bg-success); color: var(--text-success); border-color: var(--border-success); }
+  .day-btn.off { background: var(--bg-danger); color: var(--text-danger); border-color: var(--border-danger); }
+
+  /* Rem days box */
+  .rem-box {
+    background: var(--bg-secondary);
+    border: 0.5px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  .rem-box-title { font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em; }
+  .rem-breakdown {
+    background: var(--bg-primary);
+    border: 0.5px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    margin-top: 8px;
+  }
+  .rem-bd-title { font-size: 10px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+  .rem-bd-row { display: flex; justify-content: space-between; font-size: 12px; padding: 2px 0; border-bottom: 0.5px solid var(--border-light); color: var(--text-secondary); }
+  .rem-bd-row:last-child { border-bottom: none; font-weight: 600; color: var(--text-primary); padding-top: 3px; }
+
+  /* Monthly alloc table */
+  .monthly-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  .monthly-table th { font-size: 10px; font-weight: 600; color: var(--text-tertiary); text-align: left; padding: 4px 8px; border-bottom: 0.5px solid var(--border-mid); text-transform: uppercase; letter-spacing: .05em; }
+  .monthly-table td { padding: 5px 8px; font-size: 12px; color: var(--text-secondary); border-bottom: 0.5px solid var(--border-light); }
+  .monthly-table tr:last-child td { border-bottom: none; }
+  .monthly-table td.sel { background: var(--bg-info); color: var(--text-info); font-weight: 600; }
+  .monthly-table tfoot td { font-weight: 600; color: var(--text-primary); border-top: 0.5px solid var(--border-mid); }
+
+  /* ── Revenue range ────────────────────────────────────── */
+  .range-box {
+    background: var(--bg-secondary);
+    border: 0.5px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .rev-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  .rev-table th { font-size: 10px; font-weight: 600; color: var(--text-tertiary); text-align: left; padding: 5px 8px; border-bottom: 0.5px solid var(--border-mid); text-transform: uppercase; letter-spacing: .05em; }
+  .rev-table td { padding: 5px 8px; font-size: 13px; border-bottom: 0.5px solid var(--border-light); }
+  .rev-table tr:last-child td { border-bottom: none; }
+  .rev-table td.mc { color: var(--text-secondary); white-space: nowrap; }
+  .rev-table input { padding: 4px 8px; font-size: 12px; max-width: 150px; }
+  .row-sel { background: var(--bg-info) !important; }
+  .row-sel td { color: var(--text-info) !important; }
+  .row-sel td.mc { font-weight: 600; }
+  .row-prev { background: var(--bg-warning) !important; }
+  .row-prev td { color: var(--text-warning) !important; }
+
+  /* ── Actuals table ────────────────────────────────────── */
+  .actuals-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  .actuals-table th { font-size: 10px; font-weight: 600; color: var(--text-tertiary); text-align: left; padding: 4px 8px; border-bottom: 0.5px solid var(--border-mid); text-transform: uppercase; letter-spacing: .05em; }
+  .actuals-table td { padding: 5px 8px; font-size: 13px; color: var(--text-secondary); border-bottom: 0.5px solid var(--border-light); }
+  .actuals-table tr:last-child td { border-bottom: none; }
+  .actuals-table tr.cur td { color: var(--text-primary); font-weight: 500; }
+  .actuals-table input { padding: 4px 8px; font-size: 12px; max-width: 130px; }
+
+  /* ── Calc result cards ────────────────────────────────── */
+  .calc-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 10px; }
+  .calc-card {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 0.5px solid var(--border-light);
+    padding: 13px 15px;
+  }
+  .calc-card.highlight {
+    background: var(--bg-info);
+    border-color: var(--border-info);
+  }
+  .calc-card.highlight .calc-label { color: var(--text-info); }
+  .calc-card.highlight .calc-val { color: var(--text-info); }
+  .calc-card.highlight .calc-formula { color: var(--text-info); opacity: .7; }
+  .calc-card.est-card {
+    border: 1.5px solid var(--border-info);
+    background: var(--bg-primary);
+    grid-column: span 2;
+  }
+  @media(max-width:500px){ .calc-card.est-card { grid-column: span 1; } }
+  .calc-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; font-weight: 500; }
+  .calc-val { font-size: 20px; font-weight: 600; color: var(--text-primary); }
+  .calc-val-sub { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+  .calc-formula { font-size: 10px; color: var(--text-tertiary); margin-top: 4px; font-family: var(--font-mono); line-height: 1.4; }
+  .est-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; border-bottom: 0.5px solid var(--border-light); color: var(--text-secondary); }
+  .est-row:last-child { border-bottom: none; }
+  .est-total-row { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; padding: 6px 0 0; border-top: 1px solid var(--border-mid); margin-top: 4px; color: var(--text-primary); }
+
+  /* ── Misc ─────────────────────────────────────────────── */
+  .range-month-sel { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .rev-summary { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .prev-sum-breakdown { border-top: 0.5px solid var(--border-info); padding-top: 5px; margin-top: 5px; }
+  .prev-sum-row { display: flex; justify-content: space-between; font-size: 11px; padding: 1px 0; color: var(--text-info); }
+  .section-help { font-size: 12px; color: var(--text-tertiary); margin-bottom: 10px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div>
+    <h1>Revenue Recognition Validator</h1>
+    <div class="sub">Epic validation tool — flexible resource schedules, multi-currency, configurable periods</div>
+  </div>
+</header>
+
+<div class="app-body">
+
+  <!-- ── Period Selection ── -->
+  <div class="card">
+    <div class="section-title">Period Selection</div>
+    <div class="grid-2">
+      <div class="field"><label>Year</label><select id="selYear" onchange="onPeriodChange()"></select></div>
+      <div class="field"><label>Revenue Month</label><select id="selMonth" onchange="onPeriodChange()"></select></div>
+    </div>
+  </div>
+
+  <!-- ── Currency Settings ── -->
+  <div class="card">
+    <div class="section-title">Currency Settings</div>
+    <div class="grid-3">
+      <div class="field"><label>Base Currency</label><select id="baseCurrency" onchange="onCurrencyChange()"></select></div>
+      <div class="field"><label>Contract Currency</label><select id="contractCurrency" onchange="onCurrencyChange()"></select></div>
+      <div class="field" id="fxField">
+        <label>Exchange Rate <span id="fxLabel" style="font-size:10px;color:var(--text-tertiary)"></span></label>
+        <input type="number" id="exchangeRate" value="1" min="0.000001" step="0.0001" oninput="calc()">
+        <span class="note" id="fxNote"></span>
+      </div>
+    </div>
+    <div class="currency-banner" id="currencyBanner"></div>
+  </div>
+
+  <!-- ── Contract & Date ── -->
+  <div class="card">
+    <div class="section-title">Contract &amp; Reference Date</div>
+    <div class="grid-2" style="margin-bottom:12px">
+      <div class="field"><label id="tcvLabel">Total Contract Value</label><input type="number" id="totalContractVal" value="0" min="0" oninput="calc()"></div>
+    </div>
+    <div style="background:var(--bg-secondary);border:0.5px solid var(--border-light);border-radius:var(--radius-md);padding:12px">
+      <div class="grid-2" style="align-items:start">
+        <div class="field">
+          <label>Reference Date</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input type="date" id="todayDate" oninput="onDateChange()" style="flex:1">
+            <button class="btn" onclick="resetToToday()">↺ Today</button>
+          </div>
+          <span class="note">Working days counted from this date to each resource's end date.</span>
+        </div>
+      </div>
+      <div class="date-info-bar" id="dateInfoBar"></div>
+    </div>
+  </div>
+
+  <!-- ── Recognizable Revenue ── -->
+  <div class="card">
+    <div class="section-title">Recognizable Revenue History</div>
+    <p class="section-help">Select the month range for entering past Recognizable Revenue. All months <em>before</em> the selected period are summed and deducted from Cumulative Revenue to derive this month's Recognizable Revenue.</p>
+    <div class="range-box">
+      <div class="grid-2" style="margin-bottom:10px">
+        <div class="field"><label>Start Month</label><div class="range-month-sel"><select id="revStartYear"></select><select id="revStartMonth"></select></div></div>
+        <div class="field"><label>End Month</label><div class="range-month-sel"><select id="revEndYear"></select><select id="revEndMonth"></select></div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="applyRevRange()">Apply Range</button>
+        <span style="font-size:12px;color:var(--text-secondary)" id="revRangeInfo"></span>
+      </div>
+    </div>
+    <div id="revTableWrap" style="display:none">
+      <table class="rev-table">
+        <thead><tr><th>Month</th><th id="revColHdr">Recognizable Revenue</th><th>Role in Calculation</th></tr></thead>
+        <tbody id="revTbody"></tbody>
+      </table>
+      <div class="rev-summary" id="revSummary"></div>
+    </div>
+  </div>
+
+  <!-- ── Resources ── -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <div class="section-title" style="margin:0">Resources &amp; Allocation</div>
+      <div class="field" style="max-width:140px;margin:0"><label>No. of Resources</label><input type="number" id="numResources" value="1" min="1" max="20" oninput="buildResourceCards()"></div>
+    </div>
+    <p class="section-help">Each resource has a custom work schedule. Click any day to toggle it ON/OFF — supports any two days off, weekend workers, or 10-hour schedules.</p>
+    <div id="resourceCards"></div>
+  </div>
+
+  <!-- ── Monthly Actuals ── -->
+  <div class="card">
+    <div class="section-title">Monthly Actuals (Cumulative)</div>
+    <p class="section-help">Enter actual hours per month. Cumulative Actual Hours = sum of all months up to and including the selected month.</p>
+    <table class="actuals-table"><thead><tr><th>Month</th><th>Actual Hours</th></tr></thead><tbody id="actualsTbody"></tbody></table>
+  </div>
+
+  <!-- ── Calculated Results ── -->
+  <div class="card">
+    <div class="section-title">Calculated — Derived Fields</div>
+    <div class="calc-grid">
+      <div class="calc-card"><div class="calc-label">Today's Date</div><div class="calc-val" id="r-todayDate">—</div><div class="calc-formula">Reference date in use</div></div>
+      <div class="calc-card"><div class="calc-label">Total Alloc Hrs/Day (Active Resources)</div><div class="calc-val" id="r-totalAllocDay">0.00</div><div class="calc-formula">Sum of daily hrs for resources active in selected month</div></div>
+      <div class="calc-card"><div class="calc-label">Cumulative Actual Hours</div><div class="calc-val" id="r-cumActual">0.00</div><div class="calc-formula">Sum of actuals up to &amp; including selected month</div></div>
+      <div class="calc-card"><div class="calc-label">Remaining Allocation as of Ref Date</div><div class="calc-val" id="r-remAlloc">0.00</div><div class="calc-formula">Per resource: hrs/day × rem days (custom schedule, ref → end)</div></div>
+      <div class="calc-card"><div class="calc-label">Future Months Allocation</div><div class="calc-val" id="r-futureAlloc">0.00</div><div class="calc-formula">Total alloc hrs in all months after selected month</div></div>
+      <div class="calc-card est-card">
+        <div class="calc-label" style="color:var(--text-info)">Estimated Hours to Complete</div>
+        <div class="calc-val" style="color:var(--text-info)" id="r-estHours">0.00</div>
+        <div class="calc-formula" style="color:var(--text-info);opacity:.8">Cumulative Actual Hrs + Remaining Alloc (ref date → each resource's end date)</div>
+        <div id="estBreakdown" style="margin-top:10px"></div>
+      </div>
+      <div class="calc-card"><div class="calc-label">Hour Qualify for Cumulative Hours</div><div class="calc-val" id="r-hourQual">0.00</div><div class="calc-formula">Remaining Alloc + Cumulative Actual Hours</div></div>
+      <div class="calc-card"><div class="calc-label">PoC (%)</div><div class="calc-val" id="r-poc">0.00%</div><div class="calc-formula">(Actual Hrs this month / Est Hrs to Complete) × 100</div></div>
+      <div class="calc-card"><div class="calc-label">Cumulative PoC (%)</div><div class="calc-val" id="r-cumPoc">0.00%</div><div class="calc-formula">(Hour Qual / Est Hrs to Complete) × 100</div></div>
+      <div class="calc-card highlight">
+        <div class="calc-label">Cumulative Revenue <span id="r-cumRevCcy" style="font-size:10px;opacity:.8"></span></div>
+        <div class="calc-val" id="r-cumRev">$0.00</div>
+        <div class="calc-val-sub" id="r-cumRevBase"></div>
+        <div class="calc-formula">(Cum PoC / 100) × Total Contract Value</div>
+      </div>
+      <div class="calc-card highlight">
+        <div class="calc-label">Sum of Prev Months' Recognizable Revenue <span id="r-prevSumCcy" style="font-size:10px;opacity:.8"></span></div>
+        <div class="calc-val" id="r-prevSum">$0.00</div>
+        <div id="r-prevSumBreakdown"></div>
+        <div class="calc-formula">Sum of all entries for months before selected period</div>
+      </div>
+      <div class="calc-card highlight">
+        <div class="calc-label">Recognizable Revenue <span id="r-recogRevCcy" style="font-size:10px;opacity:.8"></span></div>
+        <div class="calc-val" id="r-recogRev">$0.00</div>
+        <div class="calc-val-sub" id="r-recogRevBase"></div>
+        <div class="calc-formula">Cumulative Revenue − Sum of all prev months' Recognizable Revenue</div>
+      </div>
+      <div class="calc-card highlight">
+        <div class="calc-label">Pending Revenue <span id="r-pendRevCcy" style="font-size:10px;opacity:.8"></span></div>
+        <div class="calc-val" id="r-pendRev">$0.00</div>
+        <div class="calc-val-sub" id="r-pendRevBase"></div>
+        <div class="calc-formula">Total Contract Value − Cumulative Revenue</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app-body -->
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   CONSTANTS
+═══════════════════════════════════════════════════════ */
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const DAY_FULL  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const CURRENCIES = [
+  {code:'USD',symbol:'$',name:'US Dollar'},{code:'EUR',symbol:'€',name:'Euro'},
+  {code:'GBP',symbol:'£',name:'British Pound'},{code:'INR',symbol:'₹',name:'Indian Rupee'},
+  {code:'AUD',symbol:'A$',name:'Australian Dollar'},{code:'CAD',symbol:'C$',name:'Canadian Dollar'},
+  {code:'SGD',symbol:'S$',name:'Singapore Dollar'},{code:'AED',symbol:'د.إ',name:'UAE Dirham'},
+  {code:'JPY',symbol:'¥',name:'Japanese Yen'},{code:'CHF',symbol:'CHF',name:'Swiss Franc'},
+  {code:'NZD',symbol:'NZ$',name:'New Zealand Dollar'},{code:'ZAR',symbol:'R',name:'South African Rand'},
+  {code:'SAR',symbol:'﷼',name:'Saudi Riyal'},{code:'MYR',symbol:'RM',name:'Malaysian Ringgit'},
+  {code:'HKD',symbol:'HK$',name:'Hong Kong Dollar'},
+];
+
+/* ═══════════════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════════════ */
+function getCurrency(c) { return CURRENCIES.find(x => x.code === c) || CURRENCIES[0]; }
+function fmtMoney(v, c) { const x = getCurrency(c); return x.symbol + Math.abs(v).toFixed(2) * (v < 0 ? -1 : 1).toFixed(2).replace(/^-/,'') + (v < 0 ? ' (negative)' : ''); }
+function fmtM(v, c) { const x = getCurrency(c); return (v < 0 ? '-' : '') + x.symbol + Math.abs(v).toFixed(2); }
+function toDateStr(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function parseDate(s) { if (!s) return null; const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); }
+function getSelYM() { return { year: parseInt(document.getElementById('selYear').value), month: parseInt(document.getElementById('selMonth').value) }; }
+function getRefDate() { const v = document.getElementById('todayDate').value; return v ? parseDate(v) : new Date(); }
+function getContractCcy() { return document.getElementById('contractCurrency').value; }
+function getBaseCcy() { return document.getElementById('baseCurrency').value; }
+function resetToToday() { document.getElementById('todayDate').value = toDateStr(new Date()); onDateChange(); }
+function sv(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+
+/* ═══════════════════════════════════════════════════════
+   WORKING DAY HELPERS (CUSTOM SCHEDULE)
+═══════════════════════════════════════════════════════ */
+function countCustomWorkdays(from, to, offDays) {
+  if (!from || !to || from > to) return 0;
+  let c = 0;
+  for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+    if (!offDays.has(d.getDay())) c++;
+  }
+  return c;
+}
+function countCustomWorkdaysInMonthBetween(y, m, sc, ec, offDays) {
+  const f = new Date(y, m, 1), l = new Date(y, m+1, 0);
+  const from = sc && sc > f ? new Date(sc) : new Date(f);
+  const to   = ec && ec < l ? new Date(ec) : new Date(l);
+  return countCustomWorkdays(from, to, offDays);
+}
+function calcRemDaysByMonth(refDate, endDate, offDays) {
+  if (!refDate || !endDate || refDate > endDate) return [];
+  const result = [];
+  let y = refDate.getFullYear(), m = refDate.getMonth();
+  const ey = endDate.getFullYear(), em = endDate.getMonth();
+  while (y < ey || (y === ey && m <= em)) {
+    const from = new Date(Math.max(refDate.getTime(), new Date(y,m,1).getTime()));
+    const to   = new Date(Math.min(endDate.getTime(), new Date(y,m+1,0).getTime()));
+    result.push({ year: y, month: m, label: MONTHS_S[m] + ' ' + y, days: countCustomWorkdays(from, to, offDays) });
+    m++; if (m > 11) { m = 0; y++; }
+  }
+  return result;
+}
+function countWorkdays(y, m) {
+  let c = 0, d = new Date(y,m+1,0).getDate();
+  for (let i = 1; i <= d; i++) { const w = new Date(y,m,i).getDay(); if (w !== 0 && w !== 6) c++; }
+  return c;
+}
+
+/* ═══════════════════════════════════════════════════════
+   RESOURCE DATA
+═══════════════════════════════════════════════════════ */
+let resourceData = [];
+
+function defaultResource(i) {
+  const t = new Date();
+  return {
+    name: 'Resource ' + (i + 1),
+    allocHrsDay: 8,
+    actual: 0,
+    startDate: toDateStr(new Date(t.getFullYear(), t.getMonth(), 1)),
+    endDate:   toDateStr(new Date(t.getFullYear(), t.getMonth()+6, 0)),
+    offDays: new Set([0, 6]),
+    remDaysOverride: null,
+    showSchedule: true,
+    showMonthly: false,
+  };
+}
+function getOffDays(r) { return r.offDays instanceof Set ? r.offDays : new Set(r.offDays); }
+function isActiveInMonth(r, year, month) {
+  const s = r.startDate ? parseDate(r.startDate) : null;
+  const e = r.endDate   ? parseDate(r.endDate)   : null;
+  const ms = new Date(year, month, 1), me = new Date(year, month+1, 0);
+  if (s && s > me) return false;
+  if (e && e < ms) return false;
+  return true;
+}
+function calcResourceRemAllocFromDate(r, refDate) {
+  const end = r.endDate ? parseDate(r.endDate) : null;
+  if (!end || refDate > end) return 0;
+  const offDays = getOffDays(r);
+  const bd = calcRemDaysByMonth(refDate, end, offDays);
+  const autoRem = bd.reduce((a, b) => a + b.days, 0);
+  const remDays = r.remDaysOverride !== null ? r.remDaysOverride : autoRem;
+  return (r.allocHrsDay || 0) * remDays;
+}
+function calcResourceFutureAlloc(r, year, month) {
+  const start = r.startDate ? parseDate(r.startDate) : null;
+  const end   = r.endDate   ? parseDate(r.endDate)   : null;
+  if (!end) return 0;
+  const offDays = getOffDays(r);
+  let total = 0, y = year, m = month + 1;
+  if (m > 11) { m = 0; y++; }
+  const ey = end.getFullYear(), em = end.getMonth();
+  while (y < ey || (y === ey && m <= em)) {
+    total += (r.allocHrsDay || 0) * countCustomWorkdaysInMonthBetween(y, m, start, end, offDays);
+    m++; if (m > 11) { m = 0; y++; }
+    if (y > ey + 1) break;
+  }
+  return total;
+}
+
+function buildResourceCards() {
+  const n = parseInt(document.getElementById('numResources').value) || 1;
+  while (resourceData.length < n) resourceData.push(defaultResource(resourceData.length));
+  resourceData = resourceData.slice(0, n);
+  const container = document.getElementById('resourceCards');
+  container.innerHTML = '';
+  resourceData.forEach((_, i) => {
+    const div = document.createElement('div');
+    div.className = 'res-card';
+    div.id = 'resCard-' + i;
+    container.appendChild(div);
+    renderCard(i);
+  });
+  calc();
+}
+
+function renderCard(i) {
+  const el = document.getElementById('resCard-' + i);
+  if (!el) return;
+  el.innerHTML = buildCardHTML(i);
+}
+
+function buildCardHTML(i) {
+  const r = resourceData[i];
+  const refDate = getRefDate();
+  const offDays = getOffDays(r);
+  const endDate = r.endDate ? parseDate(r.endDate) : null;
+  const startDate = r.startDate ? parseDate(r.startDate) : null;
+  const { year: selY, month: selM } = getSelYM();
+  const active = isActiveInMonth(r, selY, selM);
+  const workDaysPerWeek = 7 - offDays.size;
+  const offDayNames = [...offDays].map(d => DAY_NAMES[d]).join(', ') || 'None';
+
+  let autoRemDays = 0, breakdown = [];
+  if (endDate && refDate <= endDate) {
+    breakdown = calcRemDaysByMonth(refDate, endDate, offDays);
+    autoRemDays = breakdown.reduce((a, b) => a + b.days, 0);
+  }
+  const remDays = r.remDaysOverride !== null ? r.remDaysOverride : autoRemDays;
+  const remAllocHrs = (r.allocHrsDay || 0) * remDays;
+
+  // Day buttons
+  let dayBtns = '';
+  for (let d = 0; d < 7; d++) {
+    const isOff = offDays.has(d);
+    dayBtns += `<div class="day-btn ${isOff ? 'off' : 'on'}" onclick="toggleDay(${i},${d})" title="${DAY_FULL[d]}: ${isOff ? 'OFF' : 'ON'}">${DAY_NAMES[d]}<br><span style="font-size:9px">${isOff ? 'OFF' : 'ON'}</span></div>`;
+  }
+
+  // Monthly table rows
+  let monthlyRows = '', totalAllocHrs = 0;
+  if (startDate && endDate) {
+    let y = startDate.getFullYear(), m = startDate.getMonth();
+    const ey = endDate.getFullYear(), em = endDate.getMonth();
+    while (y < ey || (y === ey && m <= em)) {
+      const from = new Date(Math.max(startDate.getTime(), new Date(y,m,1).getTime()));
+      const to   = new Date(Math.min(endDate.getTime(),   new Date(y,m+1,0).getTime()));
+      const wd = countCustomWorkdays(from, to, offDays);
+      const hrs = (r.allocHrsDay || 0) * wd;
+      totalAllocHrs += hrs;
+      const isSel = (y === selY && m === selM);
+      monthlyRows += `<tr><td class="${isSel ? 'sel' : ''}">${MONTHS_S[m]} ${y}${isSel ? ' ★' : ''}</td><td class="${isSel ? 'sel' : ''}">${wd}</td><td class="${isSel ? 'sel' : ''}">${r.allocHrsDay}h</td><td class="${isSel ? 'sel' : ''}">${hrs.toFixed(1)}</td></tr>`;
+      m++; if (m > 11) { m = 0; y++; }
+    }
+  }
+
+  // Rem breakdown HTML
+  let remBdHtml = '';
+  if (breakdown.length) {
+    let rows = breakdown.map(b => `<div class="rem-bd-row"><span>${b.label}</span><span>${b.days}d</span></div>`).join('');
+    rows += `<div class="rem-bd-row"><span>Total</span><span>${autoRemDays} days</span></div>`;
+    remBdHtml = `<div class="rem-breakdown"><div class="rem-bd-title">Working days breakdown (ref → end)</div>${rows}</div>`;
+  }
+
+  return `
+    <div class="res-card-header">
+      <div class="res-name-wrap">
+        <div class="res-index">${i + 1}</div>
+        <input type="text" value="${r.name}" oninput="resourceData[${i}].name=this.value" style="font-weight:600;font-size:14px;flex:1">
+      </div>
+      <div class="res-actions">
+        <span class="${active ? 'badge badge-success' : 'badge badge-inactive'}">${active ? 'Active' : 'Inactive'} this month</span>
+        <span class="badge badge-info">${workDaysPerWeek}d/wk · ${r.allocHrsDay}h/day</span>
+        <button class="btn" style="font-size:11px;padding:3px 8px" onclick="toggleSection(${i},'schedule')">${r.showSchedule ? 'Hide' : 'Show'} schedule</button>
+        <button class="btn" style="font-size:11px;padding:3px 8px" onclick="toggleSection(${i},'monthly')">${r.showMonthly ? 'Hide' : 'Show'} monthly</button>
+      </div>
+    </div>
+
+    <div class="grid-4" style="margin-bottom:12px">
+      <div class="field"><label>Daily Work Hours</label>
+        <input type="number" min="1" max="24" step="0.5" value="${r.allocHrsDay}"
+          oninput="resourceData[${i}].allocHrsDay=parseFloat(this.value)||8;renderCard(${i});calc()">
+        <span class="note">Hours per working day (e.g. 8 or 10)</span></div>
+      <div class="field"><label>Actual Hrs (This Month)</label>
+        <input type="number" min="0" step="0.5" value="${r.actual}"
+          oninput="resourceData[${i}].actual=parseFloat(this.value)||0;calc()"></div>
+      <div class="field"><label>Allocation Start Date</label>
+        <input type="date" value="${r.startDate}"
+          oninput="resourceData[${i}].startDate=this.value;renderCard(${i});calc()"></div>
+      <div class="field"><label>Allocation End Date</label>
+        <input type="date" value="${r.endDate}"
+          oninput="resourceData[${i}].endDate=this.value;renderCard(${i});calc()"></div>
+    </div>
+
+    <div id="scheduleSection-${i}" style="display:${r.showSchedule ? 'block' : 'none'}">
+      <div class="schedule-box">
+        <div class="schedule-box-title">Work Schedule — click days to toggle ON / OFF</div>
+        <div class="day-grid">${dayBtns}</div>
+        <div class="chip-row">
+          <span class="chip"><strong>${workDaysPerWeek}</strong> working days/week</span>
+          <span class="chip">Days off: <strong>${offDays.size > 0 ? offDayNames : 'None'}</strong></span>
+          <span class="chip info"><strong>${r.allocHrsDay}h × ${workDaysPerWeek}d = ${(r.allocHrsDay * workDaysPerWeek).toFixed(0)}h/week</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="rem-box">
+      <div class="rem-box-title">Remaining Working Days</div>
+      <div class="grid-3">
+        <div class="field"><label>Auto-calculated</label>
+          <input type="number" value="${autoRemDays}" readonly style="background:var(--bg-secondary);color:var(--text-tertiary)">
+          <span class="note">Ref date → end date, custom schedule</span></div>
+        <div class="field"><label>Override <span style="font-size:10px">(blank = auto)</span></label>
+          <input type="number" min="0" value="${r.remDaysOverride !== null ? r.remDaysOverride : ''}" placeholder="Use auto"
+            oninput="resourceData[${i}].remDaysOverride=this.value===''?null:(parseFloat(this.value)||0);renderCard(${i});calc()">
+          <span class="note">${r.remDaysOverride !== null ? 'Manual override active' : 'Auto in use'}</span></div>
+        <div class="field"><label>Effective Remaining Days</label>
+          <input type="number" value="${remDays}" readonly style="font-weight:600;background:var(--bg-info);color:var(--text-info);border-color:var(--border-info)">
+          <span class="note">${remDays}d × ${r.allocHrsDay}h = <strong>${remAllocHrs.toFixed(1)} hrs</strong></span></div>
+      </div>
+      ${remBdHtml}
+    </div>
+
+    <div id="monthlySection-${i}" style="display:${r.showMonthly ? 'block' : 'none'}">
+      <div style="font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Monthly Allocation Breakdown</div>
+      ${monthlyRows
+        ? `<table class="monthly-table">
+            <thead><tr><th>Month</th><th>Working Days</th><th>Hrs/Day</th><th>Total Alloc Hrs</th></tr></thead>
+            <tbody>${monthlyRows}</tbody>
+            <tfoot><tr><td colspan="3">Total</td><td>${totalAllocHrs.toFixed(1)} hrs</td></tr></tfoot>
+          </table>`
+        : '<p style="font-size:12px;color:var(--text-tertiary)">Set start and end dates to see monthly breakdown.</p>'}
+    </div>`;
+}
+
+function toggleDay(i, day) {
+  const r = resourceData[i];
+  if (!(r.offDays instanceof Set)) r.offDays = new Set(r.offDays);
+  if (!r.offDays.has(day) && r.offDays.size >= 6) return; // keep at least 1 working day
+  if (r.offDays.has(day)) r.offDays.delete(day); else r.offDays.add(day);
+  r.remDaysOverride = null;
+  renderCard(i); calc();
+}
+function toggleSection(i, which) {
+  if (which === 'schedule') resourceData[i].showSchedule = !resourceData[i].showSchedule;
+  if (which === 'monthly')  resourceData[i].showMonthly  = !resourceData[i].showMonthly;
+  renderCard(i);
+}
+
+/* ═══════════════════════════════════════════════════════
+   RECOGNIZABLE REVENUE RANGE
+═══════════════════════════════════════════════════════ */
+let revRangeMonths = [];
+let recognizableRevenueData = {};
+
+function buildRevRangeSelectors() {
+  const today = new Date(), cy = today.getFullYear();
+  const yr = []; for (let y = cy-5; y <= cy+5; y++) yr.push(y);
+  ['revStartYear','revEndYear'].forEach((id, idx) => {
+    const sel = document.getElementById(id); sel.innerHTML = '';
+    yr.forEach(y => { const o = document.createElement('option'); o.value = y; o.textContent = y; if (y === cy) o.selected = true; sel.appendChild(o); });
+  });
+  ['revStartMonth','revEndMonth'].forEach((id, idx) => {
+    const sel = document.getElementById(id); sel.innerHTML = '';
+    MONTHS.forEach((mn, i) => {
+      const o = document.createElement('option'); o.value = i; o.textContent = mn;
+      if (idx === 0 && i === 0) o.selected = true;
+      if (idx === 1 && i === today.getMonth()) o.selected = true;
+      sel.appendChild(o);
+    });
+  });
+  updateRevRangeInfo();
+}
+function updateRevRangeInfo() {
+  const sy = +document.getElementById('revStartYear').value, sm = +document.getElementById('revStartMonth').value;
+  const ey = +document.getElementById('revEndYear').value,   em = +document.getElementById('revEndMonth').value;
+  const valid = ey > sy || (ey === sy && em >= sm);
+  let count = 0;
+  if (valid) { let y = sy, m = sm; while (y < ey || (y === ey && m <= em)) { count++; m++; if (m > 11) { m = 0; y++; } } }
+  document.getElementById('revRangeInfo').innerHTML = valid
+    ? `<strong>${MONTHS_S[sm]} ${sy}</strong> → <strong>${MONTHS_S[em]} ${ey}</strong> (${count} month${count !== 1 ? 's' : ''})`
+    : '<span style="color:var(--text-danger)">End must be ≥ start</span>';
+}
+function applyRevRange() {
+  const sy = +document.getElementById('revStartYear').value, sm = +document.getElementById('revStartMonth').value;
+  const ey = +document.getElementById('revEndYear').value,   em = +document.getElementById('revEndMonth').value;
+  if (ey < sy || (ey === sy && em < sm)) { updateRevRangeInfo(); return; }
+  revRangeMonths = [];
+  let y = sy, m = sm;
+  while (y < ey || (y === ey && m <= em)) {
+    revRangeMonths.push({ year: y, month: m, key: y+'-'+m, label: MONTHS[m]+' '+y });
+    m++; if (m > 11) { m = 0; y++; }
+  }
+  buildRevTable(); calc();
+}
+function calcSumPrevMonthsRecogRev() {
+  const { year: selY, month: selM } = getSelYM();
+  let sum = 0; const entries = [];
+  revRangeMonths.forEach(({ year: y, month: m, key, label }) => {
+    if (y < selY || (y === selY && m < selM)) {
+      const val = recognizableRevenueData[key] || 0;
+      sum += val; if (val > 0) entries.push({ label, val });
+    }
+  });
+  return { sum, entries };
+}
+function buildRevTable() {
+  const cc = getCurrency(getContractCcy());
+  const { year: selY, month: selM } = getSelYM();
+  document.getElementById('revColHdr').textContent = 'Recognizable Revenue (' + cc.code + ' ' + cc.symbol + ')';
+  const wrap = document.getElementById('revTableWrap');
+  if (!revRangeMonths.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  const tbody = document.getElementById('revTbody'); tbody.innerHTML = '';
+  revRangeMonths.forEach(({ year: y, month: m, key, label }) => {
+    const isSel = (y === selY && m === selM);
+    const isBefore = (y < selY || (y === selY && m < selM));
+    const isAfter  = (y > selY || (y === selY && m > selM));
+    const val = recognizableRevenueData[key] || 0;
+    let role = '';
+    if (isSel)    role = '<span class="badge badge-info">Selected period</span>';
+    else if (isBefore) role = '<span class="badge badge-warning">Prev month — included in sum</span>';
+    else if (isAfter)  role = '<span style="font-size:11px;color:var(--text-tertiary)">After selected period</span>';
+    const tr = document.createElement('tr');
+    if (isSel)    tr.className = 'row-sel';
+    else if (isBefore) tr.className = 'row-prev';
+    tr.innerHTML = `<td class="mc">${label}</td>
+      <td><input type="number" min="0" step="0.01" value="${val || ''}" placeholder="0.00"
+        oninput="recognizableRevenueData['${key}']=parseFloat(this.value)||0;updateRevSummary();calc()"></td>
+      <td>${role}</td>`;
+    tbody.appendChild(tr);
+  });
+  updateRevSummary();
+}
+function updateRevSummary() {
+  const cc = getCurrency(getContractCcy());
+  const { sum } = calcSumPrevMonthsRecogRev();
+  let total = 0; revRangeMonths.forEach(({ key }) => { total += recognizableRevenueData[key] || 0; });
+  document.getElementById('revSummary').innerHTML =
+    `<span class="chip warning">Sum of prev months: <strong>${cc.symbol}${sum.toFixed(2)}</strong></span>` +
+    `<span class="chip">Total across range: <strong>${cc.symbol}${total.toFixed(2)}</strong></span>`;
+}
+
+/* ═══════════════════════════════════════════════════════
+   MONTHLY ACTUALS
+═══════════════════════════════════════════════════════ */
+let actualsData = {};
+function buildActualsTable() {
+  const { year, month } = getSelYM();
+  const today = new Date(); let months = [], y = today.getFullYear(), m = today.getMonth() - 11;
+  if (m < 0) { y += Math.floor(m / 12); m = ((m % 12) + 12) % 12; }
+  for (let i = 0; i < 24; i++) {
+    if (y > year || (y === year && m > month)) break;
+    months.push({ year: y, month: m, label: MONTHS[m] + ' ' + y });
+    m++; if (m > 11) { m = 0; y++; }
+  }
+  const tbody = document.getElementById('actualsTbody'); tbody.innerHTML = '';
+  months.forEach(({ year: ry, month: rm, label }) => {
+    const key = ry + '-' + rm, isCurrent = (ry === year && rm === month);
+    const tr = document.createElement('tr'); if (isCurrent) tr.className = 'cur';
+    tr.innerHTML = `<td>${label}${isCurrent ? ' <span class="badge badge-info">(selected)</span>' : ''}</td>
+      <td><input type="number" min="0" value="${actualsData[key] || 0}"
+        oninput="actualsData['${key}']=parseFloat(this.value)||0;calc()"></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════
+   CURRENCY
+═══════════════════════════════════════════════════════ */
+function buildCurrencyDropdowns() {
+  ['baseCurrency','contractCurrency'].forEach(id => {
+    const sel = document.getElementById(id); sel.innerHTML = '';
+    CURRENCIES.forEach(c => {
+      const o = document.createElement('option'); o.value = c.code; o.textContent = c.code + ' — ' + c.name;
+      if (c.code === 'USD') o.selected = true; sel.appendChild(o);
+    });
+  });
+}
+function onCurrencyChange() {
+  const base = document.getElementById('baseCurrency').value, contract = document.getElementById('contractCurrency').value;
+  const fxField = document.getElementById('fxField'), cc = getCurrency(contract), bc = getCurrency(base);
+  document.getElementById('tcvLabel').textContent = 'Total Contract Value (' + cc.code + ' ' + cc.symbol + ')';
+  if (base === contract) {
+    fxField.style.opacity = '0.4'; fxField.style.pointerEvents = 'none';
+    document.getElementById('exchangeRate').value = '1';
+    document.getElementById('fxLabel').textContent = '(same currency)';
+    document.getElementById('fxNote').textContent = 'No conversion needed';
+  } else {
+    fxField.style.opacity = '1'; fxField.style.pointerEvents = 'auto';
+    document.getElementById('fxLabel').textContent = '1 ' + contract + ' = ? ' + base;
+    document.getElementById('fxNote').textContent = 'Enter how many ' + base + ' equals 1 ' + contract;
+  }
+  updateCurrencyBanner(); buildRevTable(); calc();
+}
+function updateCurrencyBanner() {
+  const base = document.getElementById('baseCurrency').value, contract = document.getElementById('contractCurrency').value;
+  const rate = parseFloat(document.getElementById('exchangeRate').value) || 1;
+  const bc = getCurrency(base), cc = getCurrency(contract);
+  const b = document.getElementById('currencyBanner');
+  b.innerHTML = base === contract
+    ? `<span class="pill">${cc.symbol} ${cc.code}</span><span class="badge badge-success">Base = Contract</span><span class="rate-tag">No conversion applied</span>`
+    : `<span class="pill">${cc.symbol} ${cc.code} Contract</span><span style="color:var(--text-tertiary)">→</span><span class="pill">${bc.symbol} ${bc.code} Base</span><span class="rate-tag">1 ${cc.code} = ${rate.toFixed(4)} ${bc.code}</span>`;
+}
+
+/* ═══════════════════════════════════════════════════════
+   PERIOD / DATE
+═══════════════════════════════════════════════════════ */
+function updateDateInfoBar() {
+  const { year, month } = getSelYM(), ref = getRefDate();
+  const wdTotal = countWorkdays(year, month);
+  const today = new Date(), isToday = toDateStr(ref) === toDateStr(today);
+  document.getElementById('dateInfoBar').innerHTML =
+    `<span class="chip">Reference: <strong>${isToday ? 'Today (' + toDateStr(ref) + ')' : toDateStr(ref)}</strong></span>` +
+    `<span class="chip">Std working days in ${MONTHS_S[month]} ${year}: <strong>${wdTotal}</strong></span>`;
+  sv('r-todayDate', toDateStr(ref));
+}
+function onDateChange() { updateDateInfoBar(); resourceData.forEach((_, i) => renderCard(i)); calc(); }
+function onPeriodChange() { buildActualsTable(); buildRevTable(); resourceData.forEach((_, i) => renderCard(i)); onDateChange(); }
+
+function buildYearMonthDropdowns() {
+  const ysel = document.getElementById('selYear'), msel = document.getElementById('selMonth');
+  const today = new Date(), cy = today.getFullYear();
+  ysel.innerHTML = '';
+  for (let y = cy-2; y <= cy+3; y++) { const o = document.createElement('option'); o.value = y; o.textContent = y; if (y === cy) o.selected = true; ysel.appendChild(o); }
+  msel.innerHTML = '';
+  MONTHS.forEach((mn, i) => { const o = document.createElement('option'); o.value = i; o.textContent = mn; if (i === today.getMonth()) o.selected = true; msel.appendChild(o); });
+}
+
+/* ═══════════════════════════════════════════════════════
+   MAIN CALC
+═══════════════════════════════════════════════════════ */
+function calc() {
+  updateCurrencyBanner(); updateDateInfoBar();
+  const { year, month } = getSelYM(), refDate = getRefDate();
+  const tcv      = parseFloat(document.getElementById('totalContractVal').value) || 0;
+  const base     = document.getElementById('baseCurrency').value;
+  const contract = document.getElementById('contractCurrency').value;
+  const rate     = parseFloat(document.getElementById('exchangeRate').value) || 1;
+  const bc = getCurrency(base), cc = getCurrency(contract), sameCcy = base === contract;
+
+  // Prev months recognizable revenue
+  const { sum: prevMonthsSum, entries: prevEntries } = calcSumPrevMonthsRecogRev();
+
+  // Total alloc hrs/day for active resources in selected month
+  let totalAllocDay = 0;
+  resourceData.forEach(r => { if (isActiveInMonth(r, year, month)) totalAllocDay += (r.allocHrsDay || 0); });
+
+  // Cumulative actual hours
+  const today2 = new Date(); let y2 = today2.getFullYear(), m2 = today2.getMonth() - 11;
+  if (m2 < 0) { y2 += Math.floor(m2/12); m2 = ((m2%12)+12)%12; }
+  let cumActual = 0;
+  for (let i = 0; i < 24; i++) {
+    if (y2 > year || (y2 === year && m2 > month)) break;
+    cumActual += (actualsData[y2+'-'+m2] || 0);
+    m2++; if (m2 > 11) { m2 = 0; y2++; }
+  }
+  const actualThisMonth = actualsData[year+'-'+month] || 0;
+
+  // Remaining allocation — per resource, custom schedule
+  let totalRemAlloc = 0;
+  const remBreakdown = [];
+  resourceData.forEach(r => {
+    const hrs = calcResourceRemAllocFromDate(r, refDate);
+    totalRemAlloc += hrs;
+    if (hrs > 0) {
+      const offDays = getOffDays(r);
+      const end = r.endDate ? parseDate(r.endDate) : null;
+      const bd = end ? calcRemDaysByMonth(refDate, end, offDays) : [];
+      const autoRem = bd.reduce((a,b) => a+b.days, 0);
+      const remDays = r.remDaysOverride !== null ? r.remDaysOverride : autoRem;
+      remBreakdown.push({ name: r.name, hrs, remDays, allocHrsDay: r.allocHrsDay, endDate: r.endDate });
+    }
+  });
+
+  // Future months alloc
+  let futureAlloc = 0;
+  resourceData.forEach(r => { futureAlloc += calcResourceFutureAlloc(r, year, month); });
+
+  const estHours  = cumActual + totalRemAlloc;
+  const hourQual  = totalRemAlloc + cumActual;
+  const poc       = estHours > 0 ? (actualThisMonth / estHours) * 100 : 0;
+  const cumPoc    = estHours > 0 ? (hourQual / estHours) * 100 : 0;
+  const cumRevContract   = (cumPoc / 100) * tcv;
+  const recogRevContract = cumRevContract - prevMonthsSum;
+  const pendRevContract  = tcv - cumRevContract;
+  const cumRevBase   = cumRevContract * rate;
+  const recogRevBase = recogRevContract * rate;
+  const pendRevBase  = pendRevContract * rate;
+
+  sv('r-totalAllocDay', totalAllocDay.toFixed(2));
+  sv('r-cumActual',     cumActual.toFixed(2));
+  sv('r-remAlloc',      totalRemAlloc.toFixed(2));
+  sv('r-futureAlloc',   futureAlloc.toFixed(2));
+  sv('r-estHours',      estHours.toFixed(2));
+
+  // Est breakdown
+  const bd = document.getElementById('estBreakdown');
+  if (bd) {
+    let html = `<div style="border-top:0.5px solid var(--border-mid);padding-top:8px;margin-top:4px">`;
+    html += `<div class="est-row"><span>Cumulative Actual Hrs (up to ${MONTHS_S[month]} ${year})</span><span style="font-weight:600">${cumActual.toFixed(2)} hrs</span></div>`;
+    remBreakdown.forEach(b => {
+      html += `<div class="est-row"><span>${b.name} — ${b.remDays}d × ${b.allocHrsDay}h → ${b.endDate || '—'}</span><span style="font-weight:600">${b.hrs.toFixed(2)} hrs</span></div>`;
+    });
+    html += `<div class="est-total-row"><span>Estimated Hours to Complete</span><span>${estHours.toFixed(2)} hrs</span></div></div>`;
+    bd.innerHTML = html;
+  }
+
+  sv('r-hourQual',   hourQual.toFixed(2));
+  sv('r-poc',        poc.toFixed(2) + '%');
+  sv('r-cumPoc',     cumPoc.toFixed(2) + '%');
+  sv('r-cumRevCcy',  '(' + cc.code + ')');
+  sv('r-prevSumCcy', '(' + cc.code + ')');
+  sv('r-recogRevCcy','(' + cc.code + ')');
+  sv('r-pendRevCcy', '(' + cc.code + ')');
+  sv('r-cumRev',     fmtM(cumRevContract, contract));
+  sv('r-prevSum',    fmtM(prevMonthsSum, contract));
+
+  // Prev sum breakdown
+  const pbd = document.getElementById('r-prevSumBreakdown');
+  if (pbd) {
+    if (prevEntries.length) {
+      let html = `<div class="prev-sum-breakdown">`;
+      prevEntries.forEach(e => { html += `<div class="prev-sum-row"><span>${e.label}</span><span>${cc.symbol}${e.val.toFixed(2)}</span></div>`; });
+      html += `</div>`;
+      pbd.innerHTML = html;
+    } else {
+      pbd.innerHTML = `<div style="font-size:11px;color:var(--text-info);margin-top:4px;opacity:.8">No previous months entered in range.</div>`;
+    }
+  }
+
+  sv('r-recogRev', fmtM(recogRevContract, contract));
+  sv('r-pendRev',  fmtM(pendRevContract,  contract));
+  if (!sameCcy) {
+    sv('r-cumRevBase',   '≈ ' + fmtM(cumRevBase,   base) + ' ' + bc.code);
+    sv('r-recogRevBase', '≈ ' + fmtM(recogRevBase, base) + ' ' + bc.code);
+    sv('r-pendRevBase',  '≈ ' + fmtM(pendRevBase,  base) + ' ' + bc.code);
+  } else {
+    sv('r-cumRevBase', ''); sv('r-recogRevBase', ''); sv('r-pendRevBase', '');
+  }
+  if (revRangeMonths.length) updateRevSummary();
+}
+
+/* ═══════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════ */
+buildYearMonthDropdowns();
+buildCurrencyDropdowns();
+document.getElementById('todayDate').value = toDateStr(new Date());
+buildRevRangeSelectors();
+['revStartYear','revStartMonth','revEndYear','revEndMonth'].forEach(id =>
+  document.getElementById(id).addEventListener('change', updateRevRangeInfo)
+);
+buildResourceCards();
+buildActualsTable();
+onCurrencyChange();
+onPeriodChange();
+</script>
+</body>
+</html>
