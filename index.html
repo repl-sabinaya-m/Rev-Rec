@@ -1113,13 +1113,15 @@ function calc() {
     hourQualLabel = 'Remaining Alloc (ref date → resource end) + Cumulative Actual Hrs';
   }
   // PoC = (Actual Hours for the Selected Revenue Month / Estimated Hours to Complete) × 100
-  const poc       = estHours > 0 ? (actualThisMonth / estHours) * 100 : 0;
-  // Cumulative PoC: when no Recognizable Revenue History entries exist, Cumulative PoC = PoC.
-  // When entries exist, Cumulative PoC = (Hour Qualify for Cum. Hrs / Est Hrs to Complete) × 100
+  const poc = estHours > 0 ? (actualThisMonth / estHours) * 100 : 0;
+
+  // Cumulative PoC:
+  // No rev history → (Cumulative Actual Hrs + Remaining Alloc in Selected Month) / Est Hrs × 100
+  //                  i.e. hourQual / estHours (already computed correctly per period mode)
+  // Rev history exists → same hourQual formula holds
+  // Past month → hourQual is 0, so cumPoc is 0 (does not apply)
   const hasRevHistory = revRangeMonths.length > 0;
-  const cumPoc    = hasRevHistory
-    ? (estHours > 0 ? (hourQual / estHours) * 100 : 0)
-    : poc;
+  const cumPoc = estHours > 0 ? (hourQual / estHours) * 100 : 0;
   const cumRevContract   = (cumPoc / 100) * tcv;
   const recogRevContract = cumRevContract - prevMonthsSum;
   const pendRevContract  = tcv - cumRevContract;
@@ -1164,9 +1166,11 @@ function calc() {
   sv('r-poc',           poc.toFixed(2) + '%');
   sv('r-cumPoc',        cumPoc.toFixed(2) + '%');
   sv('r-pocFormula',    '(Actual Hours for Selected Revenue Month / Est Hrs to Complete) × 100');
-  sv('r-cumPocFormula', hasRevHistory
-    ? '(Hour Qualify for Cum. Hrs / Est Hrs to Complete) × 100'
-    : 'No revenue history — Cumulative PoC = PoC');
+  sv('r-cumPocFormula', isPastMonth
+    ? 'N/A — past month selected'
+    : isCurrentMonth
+      ? '(Cum. Actual Hrs + Remaining Alloc in selected month) / Est Hrs × 100'
+      : '(Remaining Alloc + Cum. Actual Hrs) / Est Hrs × 100');
   sv('r-cumRevCcy',  '(' + cc.code + ')');
   sv('r-prevSumCcy', '(' + cc.code + ')');
   sv('r-recogRevCcy','(' + cc.code + ')');
