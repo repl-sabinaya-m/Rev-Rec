@@ -81,6 +81,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
+    flex-wrap: wrap;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -352,7 +353,32 @@
   .est-row:last-child { border-bottom: none; }
   .est-total-row { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; padding: 6px 0 0; border-top: 1px solid var(--border-mid); margin-top: 4px; color: var(--text-primary); }
 
-  /* ── Misc ─────────────────────────────────────────────── */
+  /* ── Custom date picker ───────────────────────────────── */
+  .date-picker-wrap { display: flex; gap: 4px; align-items: center; }
+  .date-picker-wrap select {
+    padding: 6px 4px;
+    font-size: 12px;
+    flex: 1;
+    min-width: 0;
+  }
+  .date-picker-wrap select.dp-day  { max-width: 58px; }
+  .date-picker-wrap select.dp-mon  { max-width: 90px; }
+  .date-picker-wrap select.dp-year { max-width: 72px; }
+
+  /* ── Reset / Recalc buttons ───────────────────────────── */
+  .btn-danger {
+    background: var(--bg-danger);
+    color: var(--text-danger);
+    border-color: var(--border-danger);
+  }
+  .btn-danger:hover { opacity: .85; }
+  .btn-success {
+    background: var(--bg-success);
+    color: var(--text-success);
+    border-color: var(--border-success);
+  }
+  .btn-success:hover { opacity: .85; }
+  .header-actions { display: flex; gap: 8px; margin-left: auto; align-items: center; flex-shrink: 0; }
   .range-month-sel { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .rev-summary { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .prev-sum-breakdown { border-top: 0.5px solid var(--border-info); padding-top: 5px; margin-top: 5px; }
@@ -366,6 +392,10 @@
   <div>
     <h1>Revenue Recognition Validator</h1>
     <div class="sub">Epic validation tool — flexible resource schedules, multi-currency, configurable periods</div>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-success" onclick="recalcAll()" title="Re-run all calculations">⟳ Recalc</button>
+    <button class="btn btn-danger" onclick="resetAll()" title="Reset all data to defaults">↺ Reset</button>
   </div>
 </header>
 
@@ -468,12 +498,12 @@
       <div class="calc-card est-card">
         <div class="calc-label" style="color:var(--text-info)">Estimated Hours to Complete</div>
         <div class="calc-val" style="color:var(--text-info)" id="r-estHours">0.00</div>
-        <div class="calc-formula" style="color:var(--text-info);opacity:.8">Cumulative Actual Hrs + Remaining Alloc (ref date → each resource's end date)</div>
+        <div class="calc-formula" style="color:var(--text-info);opacity:.8" id="r-estFormula">Formula adapts based on selected period (past / current / future month)</div>
         <div id="estBreakdown" style="margin-top:10px"></div>
       </div>
-      <div class="calc-card"><div class="calc-label">Hour Qualify for Cumulative Hours</div><div class="calc-val" id="r-hourQual">0.00</div><div class="calc-formula">Remaining Alloc + Cumulative Actual Hours</div></div>
-      <div class="calc-card"><div class="calc-label">PoC (%)</div><div class="calc-val" id="r-poc">0.00%</div><div class="calc-formula">(Actual Hrs this month / Est Hrs to Complete) × 100</div></div>
-      <div class="calc-card"><div class="calc-label">Cumulative PoC (%)</div><div class="calc-val" id="r-cumPoc">0.00%</div><div class="calc-formula">(Hour Qual / Est Hrs to Complete) × 100</div></div>
+      <div class="calc-card"><div class="calc-label">Hour Qualify for Cumulative Hours</div><div class="calc-val" id="r-hourQual">0.00</div><div class="calc-formula" id="r-hourQualFormula">Remaining Alloc + Cumulative Actual Hours</div></div>
+      <div class="calc-card"><div class="calc-label">PoC (%)</div><div class="calc-val" id="r-poc">0.00%</div><div class="calc-formula" id="r-pocFormula">(Actual Hours for Selected Revenue Month / Est Hrs to Complete) × 100</div></div>
+      <div class="calc-card"><div class="calc-label">Cumulative PoC (%)</div><div class="calc-val" id="r-cumPoc">0.00%</div><div class="calc-formula" id="r-cumPocFormula">(Hour Qual / Est Hrs to Complete) × 100</div></div>
       <div class="calc-card highlight">
         <div class="calc-label">Cumulative Revenue <span id="r-cumRevCcy" style="font-size:10px;opacity:.8"></span></div>
         <div class="calc-val" id="r-cumRev">$0.00</div>
@@ -722,11 +752,17 @@ function buildCardHTML(i) {
         <input type="number" min="0" step="0.5" value="${r.actual}"
           oninput="resourceData[${i}].actual=parseFloat(this.value)||0;calc()"></div>
       <div class="field"><label>Allocation Start Date</label>
-        <input type="date" value="${r.startDate}"
-          oninput="resourceData[${i}].startDate=this.value;renderCard(${i});calc()"></div>
+        <div class="date-picker-wrap">
+          ${buildDaySelect(i,'startDate','day')}
+          ${buildMonSelect(i,'startDate','mon')}
+          ${buildYrSelect(i,'startDate','yr')}
+        </div></div>
       <div class="field"><label>Allocation End Date</label>
-        <input type="date" value="${r.endDate}"
-          oninput="resourceData[${i}].endDate=this.value;renderCard(${i});calc()"></div>
+        <div class="date-picker-wrap">
+          ${buildDaySelect(i,'endDate','day')}
+          ${buildMonSelect(i,'endDate','mon')}
+          ${buildYrSelect(i,'endDate','yr')}
+        </div></div>
     </div>
 
     <div id="scheduleSection-${i}" style="display:${r.showSchedule ? 'block' : 'none'}">
@@ -1010,14 +1046,80 @@ function calc() {
     }
   });
 
-  // Future months alloc
+  // Future months alloc (months strictly AFTER selected month)
   let futureAlloc = 0;
   resourceData.forEach(r => { futureAlloc += calcResourceFutureAlloc(r, year, month); });
 
-  const estHours  = cumActual + totalRemAlloc;
-  const hourQual  = totalRemAlloc + cumActual;
+  // ── Determine period mode relative to actual today ──────────────────────
+  const realToday = new Date();
+  const todayYear = realToday.getFullYear(), todayMonth = realToday.getMonth();
+  const isPastMonth    = (year < todayYear) || (year === todayYear && month < todayMonth);
+  const isCurrentMonth = (year === todayYear && month === todayMonth);
+  // isFutureMonth      = everything else
+
+  // ── estHours formula switches by period mode ─────────────────────────────
+  // Past month   → Cumulative Actual Hrs + Future Months Allocation (months after selected month)
+  // Current month → Cumulative Actual Hrs + Remaining Allocation as of Today (ref date → resource end)
+  // Future month  → Cumulative Actual Hrs + Full allocation from start of selected month onwards
+  let estHours, estMode, estAllocPart, estAllocBreakdown;
+
+  if (isPastMonth) {
+    estAllocPart = futureAlloc;
+    estHours = cumActual + futureAlloc;
+    estMode = 'past';
+    // Build breakdown per resource for future alloc
+    estAllocBreakdown = [];
+    resourceData.forEach(r => {
+      const hrs = calcResourceFutureAlloc(r, year, month);
+      if (hrs > 0) estAllocBreakdown.push({ name: r.name, hrs, note: 'full alloc after ' + MONTHS_S[month] + ' ' + year });
+    });
+  } else {
+    // Current month OR Future month: Cum. Actual Hrs + Remaining Alloc as of Selected Reference Date
+    estAllocPart = totalRemAlloc;
+    estHours = cumActual + totalRemAlloc;
+    estMode = isCurrentMonth ? 'current' : 'future';
+    estAllocBreakdown = remBreakdown.map(b => ({ name: b.name, hrs: b.hrs, note: b.remDays + 'd × ' + b.allocHrsDay + 'h → ' + (b.endDate || '—') }));
+  }
+
+  // Hour Qualify for Cumulative Hours — depends on period mode:
+  // Current month: Cumulative Actual Hours + Remaining Allocation in the Selected Month only
+  // Future month:  Remaining Alloc (ref date → resource end) + Cumulative Actual Hours
+  // Past month:    Does not come into picture (set to 0)
+  let hourQual = 0;
+  let hourQualLabel = '';
+  if (isPastMonth) {
+    hourQual = 0;
+    hourQualLabel = 'N/A — past month selected';
+  } else if (isCurrentMonth) {
+    // Remaining allocation in selected month only: refDate → end of selected month, capped to resource end
+    let remAllocInSelMonth = 0;
+    resourceData.forEach(r => {
+      const rStart  = r.startDate ? parseDate(r.startDate) : null;
+      const rEnd    = r.endDate   ? parseDate(r.endDate)   : null;
+      const mStart  = new Date(year, month, 1);
+      const mEnd    = new Date(year, month + 1, 0);
+      if (rStart && rStart > mEnd) return;
+      if (rEnd   && rEnd   < mStart) return;
+      const from = refDate > mStart ? new Date(refDate) : new Date(mStart);
+      const to   = rEnd && rEnd < mEnd ? new Date(rEnd) : new Date(mEnd);
+      if (from > to) return;
+      remAllocInSelMonth += (r.allocHrsDay || 0) * countCustomWorkdays(from, to, getOffDays(r));
+    });
+    hourQual = cumActual + remAllocInSelMonth;
+    hourQualLabel = 'Cumulative Actual Hrs + Remaining Alloc in ' + MONTHS_S[month] + ' ' + year;
+  } else {
+    // Future month
+    hourQual = totalRemAlloc + cumActual;
+    hourQualLabel = 'Remaining Alloc (ref date → resource end) + Cumulative Actual Hrs';
+  }
+  // PoC = (Actual Hours for the Selected Revenue Month / Estimated Hours to Complete) × 100
   const poc       = estHours > 0 ? (actualThisMonth / estHours) * 100 : 0;
-  const cumPoc    = estHours > 0 ? (hourQual / estHours) * 100 : 0;
+  // Cumulative PoC: when no Recognizable Revenue History entries exist, Cumulative PoC = PoC.
+  // When entries exist, Cumulative PoC = (Hour Qualify for Cum. Hrs / Est Hrs to Complete) × 100
+  const hasRevHistory = revRangeMonths.length > 0;
+  const cumPoc    = hasRevHistory
+    ? (estHours > 0 ? (hourQual / estHours) * 100 : 0)
+    : poc;
   const cumRevContract   = (cumPoc / 100) * tcv;
   const recogRevContract = cumRevContract - prevMonthsSum;
   const pendRevContract  = tcv - cumRevContract;
@@ -1031,21 +1133,40 @@ function calc() {
   sv('r-futureAlloc',   futureAlloc.toFixed(2));
   sv('r-estHours',      estHours.toFixed(2));
 
-  // Est breakdown
+  // Est breakdown — mode-aware label
+  const modeLabels = {
+    past:    'Past month — Cum. Actual Hrs + Full Allocation after ' + MONTHS_S[month] + ' ' + year,
+    current: 'Current month — Cum. Actual Hrs + Remaining Alloc as of Ref Date (' + toDateStr(refDate) + ')',
+    future:  'Future month — Cum. Actual Hrs + Remaining Alloc as of Ref Date (' + toDateStr(refDate) + ')',
+  };
+  const modeColors = { past: 'var(--text-warning)', current: 'var(--text-info)', future: 'var(--text-success)' };
+  // Update formula text on the est card
+  sv('r-estFormula', modeLabels[estMode]);
+
   const bd = document.getElementById('estBreakdown');
   if (bd) {
     let html = `<div style="border-top:0.5px solid var(--border-mid);padding-top:8px;margin-top:4px">`;
+    // Mode badge
+    html += `<div style="font-size:11px;font-weight:600;color:${modeColors[estMode]};margin-bottom:6px;padding:3px 8px;background:var(--bg-secondary);border-radius:4px;display:inline-block">${modeLabels[estMode]}</div>`;
     html += `<div class="est-row"><span>Cumulative Actual Hrs (up to ${MONTHS_S[month]} ${year})</span><span style="font-weight:600">${cumActual.toFixed(2)} hrs</span></div>`;
-    remBreakdown.forEach(b => {
-      html += `<div class="est-row"><span>${b.name} — ${b.remDays}d × ${b.allocHrsDay}h → ${b.endDate || '—'}</span><span style="font-weight:600">${b.hrs.toFixed(2)} hrs</span></div>`;
+    estAllocBreakdown.forEach(b => {
+      html += `<div class="est-row"><span>${b.name} — ${b.note}</span><span style="font-weight:600">${b.hrs.toFixed(2)} hrs</span></div>`;
     });
+    if (estAllocBreakdown.length === 0) {
+      html += `<div class="est-row"><span style="color:var(--text-tertiary)">No allocation found for this period</span><span style="font-weight:600">0.00 hrs</span></div>`;
+    }
     html += `<div class="est-total-row"><span>Estimated Hours to Complete</span><span>${estHours.toFixed(2)} hrs</span></div></div>`;
     bd.innerHTML = html;
   }
 
-  sv('r-hourQual',   hourQual.toFixed(2));
-  sv('r-poc',        poc.toFixed(2) + '%');
-  sv('r-cumPoc',     cumPoc.toFixed(2) + '%');
+  sv('r-hourQual',        hourQual.toFixed(2));
+  sv('r-hourQualFormula', hourQualLabel);
+  sv('r-poc',           poc.toFixed(2) + '%');
+  sv('r-cumPoc',        cumPoc.toFixed(2) + '%');
+  sv('r-pocFormula',    '(Actual Hours for Selected Revenue Month / Est Hrs to Complete) × 100');
+  sv('r-cumPocFormula', hasRevHistory
+    ? '(Hour Qualify for Cum. Hrs / Est Hrs to Complete) × 100'
+    : 'No revenue history — Cumulative PoC = PoC');
   sv('r-cumRevCcy',  '(' + cc.code + ')');
   sv('r-prevSumCcy', '(' + cc.code + ')');
   sv('r-recogRevCcy','(' + cc.code + ')');
@@ -1076,6 +1197,142 @@ function calc() {
     sv('r-cumRevBase', ''); sv('r-recogRevBase', ''); sv('r-pendRevBase', '');
   }
   if (revRangeMonths.length) updateRevSummary();
+}
+
+/* ═══════════════════════════════════════════════════════
+   CUSTOM DATE PICKER HELPERS
+═══════════════════════════════════════════════════════ */
+function buildDaySelect(ri, field, cls) {
+  const r = resourceData[ri];
+  const parts = (r[field] || '').split('-');
+  const cur = parts[2] ? parseInt(parts[2]) : 1;
+  let opts = '';
+  for (let d = 1; d <= 31; d++) {
+    opts += `<option value="${d}" ${d === cur ? 'selected' : ''}>${String(d).padStart(2,'0')}</option>`;
+  }
+  return `<select class="dp-day" onchange="setDatePart(${ri},'${field}','day',this.value)">${opts}</select>`;
+}
+
+function buildMonSelect(ri, field, cls) {
+  const r = resourceData[ri];
+  const parts = (r[field] || '').split('-');
+  const cur = parts[1] ? parseInt(parts[1]) : 1;
+  const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let opts = '';
+  names.forEach((mn, idx) => {
+    const m = idx + 1;
+    opts += `<option value="${m}" ${m === cur ? 'selected' : ''}>${mn}</option>`;
+  });
+  return `<select class="dp-mon" onchange="setDatePart(${ri},'${field}','month',this.value)">${opts}</select>`;
+}
+
+function buildYrSelect(ri, field, cls) {
+  const r = resourceData[ri];
+  const parts = (r[field] || '').split('-');
+  const cur = parts[0] ? parseInt(parts[0]) : new Date().getFullYear();
+  const base = new Date().getFullYear();
+  let opts = '';
+  for (let y = base - 3; y <= base + 10; y++) {
+    opts += `<option value="${y}" ${y === cur ? 'selected' : ''}>${y}</option>`;
+  }
+  return `<select class="dp-year" onchange="setDatePart(${ri},'${field}','year',this.value)">${opts}</select>`;
+}
+
+function setDatePart(ri, field, part, val) {
+  const r = resourceData[ri];
+  const parts = (r[field] || toDateStr(new Date())).split('-');
+  let y = parseInt(parts[0]), m = parseInt(parts[1]), d = parseInt(parts[2]);
+  if (part === 'year')  y = parseInt(val);
+  if (part === 'month') m = parseInt(val);
+  if (part === 'day')   d = parseInt(val);
+  // Clamp day to valid range for the month
+  const maxDay = new Date(y, m, 0).getDate();
+  if (d > maxDay) d = maxDay;
+  r[field] = y + '-' + String(m).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+  renderCard(ri);
+  calc();
+}
+
+/* ═══════════════════════════════════════════════════════
+   RESET & RECALC
+═══════════════════════════════════════════════════════ */
+function recalcAll() {
+  onCurrencyChange();
+  onPeriodChange();
+}
+
+function resetAll() {
+  if (!confirm('Reset all data? This will clear all entered values and restore defaults.')) return;
+
+  // Nuclear reset — wipe all JS state first
+  actualsData              = {};
+  recognizableRevenueData  = {};
+  revRangeMonths           = [];
+  resourceData             = [];
+
+  const today = new Date();
+
+  // ── Period ───────────────────────────────────────────────
+  const selYearEl  = document.getElementById('selYear');
+  const selMonthEl = document.getElementById('selMonth');
+  selYearEl.value  = today.getFullYear();
+  selMonthEl.value = today.getMonth();
+
+  // ── Reference date ───────────────────────────────────────
+  document.getElementById('todayDate').value = toDateStr(today);
+
+  // ── Contract ─────────────────────────────────────────────
+  document.getElementById('totalContractVal').value = '';
+
+  // ── Currency ─────────────────────────────────────────────
+  document.getElementById('baseCurrency').value     = 'USD';
+  document.getElementById('contractCurrency').value = 'USD';
+  document.getElementById('exchangeRate').value     = '1';
+
+  // ── Rev range — rebuild selectors entirely (safest reset) ─
+  buildRevRangeSelectors();
+  document.getElementById('revRangeInfo').textContent = '';
+  document.getElementById('revTbody').innerHTML        = '';
+  document.getElementById('revSummary').innerHTML      = '';
+  document.getElementById('revTableWrap').style.display = 'none';
+
+  // ── Resources — nuke container and rebuild from scratch ──
+  document.getElementById('numResources').value = '1';
+  resourceData = [defaultResource(0)];
+  const rc = document.getElementById('resourceCards');
+  rc.innerHTML = '';
+  const d0 = document.createElement('div');
+  d0.className = 'res-card'; d0.id = 'resCard-0';
+  rc.appendChild(d0);
+  renderCard(0);
+
+  // ── Actuals — nuke tbody and rebuild (reads actualsData={}) ─
+  document.getElementById('actualsTbody').innerHTML = '';
+  buildActualsTable();
+
+  // ── Date info bar ─────────────────────────────────────────
+  updateDateInfoBar();
+
+  // ── Currency banner + all calculated fields ───────────────
+  onCurrencyChange();
+
+  // ── Zero out all result display fields explicitly ─────────
+  [
+    'r-todayDate','r-totalAllocDay','r-cumActual','r-remAlloc',
+    'r-futureAlloc','r-estHours','r-hourQual','r-poc','r-cumPoc',
+    'r-cumRev','r-cumRevBase','r-prevSum','r-recogRev','r-recogRevBase',
+    'r-pendRev','r-pendRevBase','r-lmrVal',
+  ].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '—'; });
+
+  document.getElementById('estBreakdown').innerHTML        = '';
+  document.getElementById('r-prevSumBreakdown').innerHTML  = '';
+  document.getElementById('r-pocFormula').textContent      = '(Actual Hrs for Selected Revenue Month / Est Hrs to Complete) × 100';
+  document.getElementById('r-cumPocFormula').textContent   = '(Hour Qualify for Cum. Hrs / Est Hrs to Complete) × 100';
+  document.getElementById('r-hourQualFormula').textContent = 'Remaining Alloc + Cumulative Actual Hours';
+  document.getElementById('r-estFormula').textContent      = 'Formula adapts based on selected period (past / current / future month)';
+
+  // ── Final full recalc from clean state ────────────────────
+  calc();
 }
 
 /* ═══════════════════════════════════════════════════════
