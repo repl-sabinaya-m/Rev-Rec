@@ -353,7 +353,40 @@
   .est-row:last-child { border-bottom: none; }
   .est-total-row { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; padding: 6px 0 0; border-top: 1px solid var(--border-mid); margin-top: 4px; color: var(--text-primary); }
 
-  /* ── Custom date picker ───────────────────────────────── */
+  /* ── Holiday Calendar ─────────────────────────────────── */
+  .cal-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .cal-nav-title { font-size:13px; font-weight:600; color:var(--text-primary); }
+  .cal-nav-btn { background:none; border:0.5px solid var(--border-mid); border-radius:var(--radius-sm); padding:3px 8px; cursor:pointer; font-size:13px; color:var(--text-secondary); line-height:1; }
+  .cal-nav-btn:hover { background:var(--bg-secondary); }
+  .cal-nav-selects { display:flex; gap:6px; }
+  .cal-nav-selects select { font-size:12px; padding:3px 6px; width:auto; }
+  .cal-grid-hdr { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-bottom:2px; }
+  .cal-grid-hdr span { font-size:10px; font-weight:600; color:var(--text-tertiary); text-align:center; padding:2px 0; text-transform:uppercase; }
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+  .cal-day {
+    aspect-ratio:1;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    border-radius:var(--radius-sm);
+    font-size:12px; font-weight:500;
+    cursor:pointer;
+    border:0.5px solid transparent;
+    line-height:1.2;
+    padding:2px;
+    user-select:none;
+  }
+  .cal-day.empty { cursor:default; }
+  .cal-day.weekend { color:var(--text-tertiary); background:var(--bg-secondary); }
+  .cal-day.off-day { color:var(--text-danger); background:var(--bg-danger); border-color:var(--border-danger); }
+  .cal-day.holiday { background:var(--bg-warning); color:var(--text-warning); border-color:var(--border-warning); font-weight:700; }
+  .cal-day.holiday.weekend { background:var(--bg-warning); color:var(--text-warning); }
+  .cal-day.working:hover { background:var(--bg-info); border-color:var(--border-info); }
+  .cal-day.working { background:var(--bg-primary); color:var(--text-primary); border-color:var(--border-light); }
+  .cal-day span.cal-dot { font-size:7px; color:var(--text-warning); }
+  .cal-legend { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .cal-legend-item { display:flex; align-items:center; gap:4px; font-size:11px; color:var(--text-secondary); }
+  .cal-legend-swatch { width:12px; height:12px; border-radius:3px; flex-shrink:0; }
+  .cal-holidays-list { margin-top:8px; font-size:11px; color:var(--text-secondary); }
+  .cal-holidays-list strong { color:var(--text-warning); }
   .date-picker-wrap { display: flex; gap: 4px; align-items: center; }
   .date-picker-wrap select {
     padding: 6px 4px;
@@ -570,21 +603,21 @@ function sv(id, val) { const el = document.getElementById(id); if (el) el.textCo
 /* ═══════════════════════════════════════════════════════
    WORKING DAY HELPERS (CUSTOM SCHEDULE)
 ═══════════════════════════════════════════════════════ */
-function countCustomWorkdays(from, to, offDays) {
+function countCustomWorkdays(from, to, offDays, holidays) {
   if (!from || !to || from > to) return 0;
   let c = 0;
   for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-    if (!offDays.has(d.getDay())) c++;
+    if (!offDays.has(d.getDay()) && !(holidays && holidays.has(toDateStr(d)))) c++;
   }
   return c;
 }
-function countCustomWorkdaysInMonthBetween(y, m, sc, ec, offDays) {
+function countCustomWorkdaysInMonthBetween(y, m, sc, ec, offDays, holidays) {
   const f = new Date(y, m, 1), l = new Date(y, m+1, 0);
   const from = sc && sc > f ? new Date(sc) : new Date(f);
   const to   = ec && ec < l ? new Date(ec) : new Date(l);
-  return countCustomWorkdays(from, to, offDays);
+  return countCustomWorkdays(from, to, offDays, holidays);
 }
-function calcRemDaysByMonth(refDate, endDate, offDays) {
+function calcRemDaysByMonth(refDate, endDate, offDays, holidays) {
   if (!refDate || !endDate || refDate > endDate) return [];
   const result = [];
   let y = refDate.getFullYear(), m = refDate.getMonth();
@@ -592,7 +625,7 @@ function calcRemDaysByMonth(refDate, endDate, offDays) {
   while (y < ey || (y === ey && m <= em)) {
     const from = new Date(Math.max(refDate.getTime(), new Date(y,m,1).getTime()));
     const to   = new Date(Math.min(endDate.getTime(), new Date(y,m+1,0).getTime()));
-    result.push({ year: y, month: m, label: MONTHS_S[m] + ' ' + y, days: countCustomWorkdays(from, to, offDays) });
+    result.push({ year: y, month: m, label: MONTHS_S[m] + ' ' + y, days: countCustomWorkdays(from, to, offDays, holidays) });
     m++; if (m > 11) { m = 0; y++; }
   }
   return result;
@@ -617,12 +650,16 @@ function defaultResource(i) {
     startDate: toDateStr(new Date(t.getFullYear(), t.getMonth(), 1)),
     endDate:   toDateStr(new Date(t.getFullYear(), t.getMonth()+6, 0)),
     offDays: new Set([0, 6]),
+    holidays: new Set(),
+    holidayViewYear:  t.getFullYear(),
+    holidayViewMonth: t.getMonth(),
     remDaysOverride: null,
     showSchedule: true,
     showMonthly: false,
   };
 }
-function getOffDays(r) { return r.offDays instanceof Set ? r.offDays : new Set(r.offDays); }
+function getOffDays(r)  { return r.offDays  instanceof Set ? r.offDays  : new Set(r.offDays  || []); }
+function getHolidays(r) { return r.holidays instanceof Set ? r.holidays : new Set(r.holidays || []); }
 function isActiveInMonth(r, year, month) {
   const s = r.startDate ? parseDate(r.startDate) : null;
   const e = r.endDate   ? parseDate(r.endDate)   : null;
@@ -634,8 +671,9 @@ function isActiveInMonth(r, year, month) {
 function calcResourceRemAllocFromDate(r, refDate) {
   const end = r.endDate ? parseDate(r.endDate) : null;
   if (!end || refDate > end) return 0;
-  const offDays = getOffDays(r);
-  const bd = calcRemDaysByMonth(refDate, end, offDays);
+  const offDays  = getOffDays(r);
+  const holidays = getHolidays(r);
+  const bd = calcRemDaysByMonth(refDate, end, offDays, holidays);
   const autoRem = bd.reduce((a, b) => a + b.days, 0);
   const remDays = r.remDaysOverride !== null ? r.remDaysOverride : autoRem;
   return (r.allocHrsDay || 0) * remDays;
@@ -644,12 +682,13 @@ function calcResourceFutureAlloc(r, year, month) {
   const start = r.startDate ? parseDate(r.startDate) : null;
   const end   = r.endDate   ? parseDate(r.endDate)   : null;
   if (!end) return 0;
-  const offDays = getOffDays(r);
+  const offDays  = getOffDays(r);
+  const holidays = getHolidays(r);
   let total = 0, y = year, m = month + 1;
   if (m > 11) { m = 0; y++; }
   const ey = end.getFullYear(), em = end.getMonth();
   while (y < ey || (y === ey && m <= em)) {
-    total += (r.allocHrsDay || 0) * countCustomWorkdaysInMonthBetween(y, m, start, end, offDays);
+    total += (r.allocHrsDay || 0) * countCustomWorkdaysInMonthBetween(y, m, start, end, offDays, holidays);
     m++; if (m > 11) { m = 0; y++; }
     if (y > ey + 1) break;
   }
@@ -681,7 +720,8 @@ function renderCard(i) {
 function buildCardHTML(i) {
   const r = resourceData[i];
   const refDate = getRefDate();
-  const offDays = getOffDays(r);
+  const offDays  = getOffDays(r);
+  const holidays = getHolidays(r);
   const endDate = r.endDate ? parseDate(r.endDate) : null;
   const startDate = r.startDate ? parseDate(r.startDate) : null;
   const { year: selY, month: selM } = getSelYM();
@@ -691,7 +731,7 @@ function buildCardHTML(i) {
 
   let autoRemDays = 0, breakdown = [];
   if (endDate && refDate <= endDate) {
-    breakdown = calcRemDaysByMonth(refDate, endDate, offDays);
+    breakdown = calcRemDaysByMonth(refDate, endDate, offDays, holidays);
     autoRemDays = breakdown.reduce((a, b) => a + b.days, 0);
   }
   const remDays = r.remDaysOverride !== null ? r.remDaysOverride : autoRemDays;
@@ -704,6 +744,11 @@ function buildCardHTML(i) {
     dayBtns += `<div class="day-btn ${isOff ? 'off' : 'on'}" onclick="toggleDay(${i},${d})" title="${DAY_FULL[d]}: ${isOff ? 'OFF' : 'ON'}">${DAY_NAMES[d]}<br><span style="font-size:9px">${isOff ? 'OFF' : 'ON'}</span></div>`;
   }
 
+  // Holiday calendar
+  const hvY = r.holidayViewYear  || new Date().getFullYear();
+  const hvM = r.holidayViewMonth !== undefined ? r.holidayViewMonth : new Date().getMonth();
+  const calHtml = buildHolidayCalendar(i, hvY, hvM, offDays, holidays);
+
   // Monthly table rows
   let monthlyRows = '', totalAllocHrs = 0;
   if (startDate && endDate) {
@@ -712,7 +757,7 @@ function buildCardHTML(i) {
     while (y < ey || (y === ey && m <= em)) {
       const from = new Date(Math.max(startDate.getTime(), new Date(y,m,1).getTime()));
       const to   = new Date(Math.min(endDate.getTime(),   new Date(y,m+1,0).getTime()));
-      const wd = countCustomWorkdays(from, to, offDays);
+      const wd = countCustomWorkdays(from, to, offDays, holidays);
       const hrs = (r.allocHrsDay || 0) * wd;
       totalAllocHrs += hrs;
       const isSel = (y === selY && m === selM);
@@ -773,7 +818,12 @@ function buildCardHTML(i) {
           <span class="chip"><strong>${workDaysPerWeek}</strong> working days/week</span>
           <span class="chip">Days off: <strong>${offDays.size > 0 ? offDayNames : 'None'}</strong></span>
           <span class="chip info"><strong>${r.allocHrsDay}h × ${workDaysPerWeek}d = ${(r.allocHrsDay * workDaysPerWeek).toFixed(0)}h/week</strong></span>
+          ${holidays.size > 0 ? `<span class="chip warning"><strong>${holidays.size}</strong> holiday/time-off day${holidays.size !== 1 ? 's' : ''} marked</span>` : ''}
         </div>
+      </div>
+      <div class="schedule-box" style="margin-top:8px">
+        <div class="schedule-box-title">Ad-hoc Holidays &amp; Time Off — click a date to mark/unmark</div>
+        ${calHtml}
       </div>
     </div>
 
@@ -1037,9 +1087,10 @@ function calc() {
     const hrs = calcResourceRemAllocFromDate(r, refDate);
     totalRemAlloc += hrs;
     if (hrs > 0) {
-      const offDays = getOffDays(r);
+      const offDays  = getOffDays(r);
+      const holidays = getHolidays(r);
       const end = r.endDate ? parseDate(r.endDate) : null;
-      const bd = end ? calcRemDaysByMonth(refDate, end, offDays) : [];
+      const bd = end ? calcRemDaysByMonth(refDate, end, offDays, holidays) : [];
       const autoRem = bd.reduce((a,b) => a+b.days, 0);
       const remDays = r.remDaysOverride !== null ? r.remDaysOverride : autoRem;
       remBreakdown.push({ name: r.name, hrs, remDays, allocHrsDay: r.allocHrsDay, endDate: r.endDate });
@@ -1103,7 +1154,7 @@ function calc() {
       const from = refDate > mStart ? new Date(refDate) : new Date(mStart);
       const to   = rEnd && rEnd < mEnd ? new Date(rEnd) : new Date(mEnd);
       if (from > to) return;
-      remAllocInSelMonth += (r.allocHrsDay || 0) * countCustomWorkdays(from, to, getOffDays(r));
+      remAllocInSelMonth += (r.allocHrsDay || 0) * countCustomWorkdays(from, to, getOffDays(r), getHolidays(r));
     });
     hourQual = cumActual + remAllocInSelMonth;
     hourQualLabel = 'Cumulative Actual Hrs + Remaining Alloc in ' + MONTHS_S[month] + ' ' + year;
@@ -1219,6 +1270,130 @@ function calc() {
     sv('r-cumRevBase', ''); sv('r-recogRevBase', ''); sv('r-pendRevBase', '');
   }
   if (revRangeMonths.length) updateRevSummary();
+}
+
+/* ═══════════════════════════════════════════════════════
+   HOLIDAY CALENDAR
+═══════════════════════════════════════════════════════ */
+function buildHolidayCalendar(ri, y, m, offDays, holidays) {
+  const today = new Date();
+  const cy = today.getFullYear(), baseY = cy - 3;
+  // Month/Year nav selects
+  let monOpts = '', yrOpts = '';
+  MONTHS.forEach((mn, idx) => {
+    monOpts += `<option value="${idx}" ${idx === m ? 'selected' : ''}>${mn}</option>`;
+  });
+  for (let yr = baseY; yr <= cy + 10; yr++) {
+    yrOpts += `<option value="${yr}" ${yr === y ? 'selected' : ''}>${yr}</option>`;
+  }
+
+  // Calendar grid
+  const firstDay = new Date(y, m, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  let grid = '';
+  // Day headers
+  let hdrs = DAY_NAMES.map(d => `<span>${d}</span>`).join('');
+  // Empty cells before first day
+  for (let e = 0; e < firstDay; e++) grid += `<div class="cal-day empty"></div>`;
+  // Day cells
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(y, m, d);
+    const ds = toDateStr(date);
+    const dow = date.getDay();
+    const isWeekend  = offDays.has(dow);
+    const isHoliday  = holidays.has(ds);
+    let cls = 'cal-day';
+    let label = d;
+    let title = '';
+    if (isHoliday) {
+      cls += ' holiday';
+      title = 'Holiday/Time-off — click to remove';
+    } else if (isWeekend) {
+      cls += ' off-day';
+      title = DAY_FULL[dow] + ' (regular day off)';
+    } else {
+      cls += ' working';
+      title = 'Working day — click to mark as holiday/time-off';
+    }
+    grid += `<div class="${cls}" onclick="toggleHoliday(${ri},'${ds}')" title="${title}">${label}</div>`;
+  }
+
+  // List of marked holidays
+  const sortedHols = [...holidays].sort();
+  const holsInMonth = sortedHols.filter(ds => {
+    const [hy, hm] = ds.split('-').map(Number);
+    return hy === y && (hm - 1) === m;
+  });
+  let holList = '';
+  if (holsInMonth.length) {
+    holList = `<div class="cal-holidays-list">Marked this month: ` +
+      holsInMonth.map(ds => {
+        const [,, dd] = ds.split('-');
+        const dObj = parseDate(ds);
+        return `<strong>${DAY_NAMES[dObj.getDay()]} ${parseInt(dd)}</strong>`;
+      }).join(', ') +
+      ` &nbsp;<button class="btn" style="font-size:10px;padding:2px 6px" onclick="clearHolidaysInMonth(${ri},${y},${m})">Clear month</button></div>`;
+  }
+  const totalHols = holidays.size;
+
+  return `
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="navHolidayCal(${ri},-1)" title="Previous month">&#8249;</button>
+      <div class="cal-nav-selects">
+        <select onchange="jumpHolidayCal(${ri},'month',this.value)">${monOpts}</select>
+        <select onchange="jumpHolidayCal(${ri},'year',this.value)">${yrOpts}</select>
+      </div>
+      <button class="cal-nav-btn" onclick="navHolidayCal(${ri},1)" title="Next month">&#8250;</button>
+    </div>
+    <div class="cal-grid-hdr">${hdrs}</div>
+    <div class="cal-grid">${grid}</div>
+    ${holList}
+    <div class="cal-legend">
+      <div class="cal-legend-item"><div class="cal-legend-swatch" style="background:var(--bg-primary);border:0.5px solid var(--border-mid)"></div>Working day</div>
+      <div class="cal-legend-item"><div class="cal-legend-swatch" style="background:var(--bg-danger)"></div>Regular day off</div>
+      <div class="cal-legend-item"><div class="cal-legend-swatch" style="background:var(--bg-warning)"></div>Holiday / Time off</div>
+    </div>
+    ${totalHols > 0 ? `<div style="margin-top:6px;font-size:11px;color:var(--text-tertiary)">Total holidays/time-off marked across all months: <strong style="color:var(--text-warning)">${totalHols}</strong></div>` : ''}
+  `;
+}
+
+function toggleHoliday(ri, ds) {
+  const r = resourceData[ri];
+  if (!(r.holidays instanceof Set)) r.holidays = new Set(r.holidays || []);
+  if (r.holidays.has(ds)) r.holidays.delete(ds);
+  else r.holidays.add(ds);
+  r.remDaysOverride = null;
+  renderCard(ri); calc();
+}
+
+function navHolidayCal(ri, dir) {
+  const r = resourceData[ri];
+  let y = r.holidayViewYear  || new Date().getFullYear();
+  let m = r.holidayViewMonth !== undefined ? r.holidayViewMonth : new Date().getMonth();
+  m += dir;
+  if (m > 11) { m = 0; y++; }
+  if (m < 0)  { m = 11; y--; }
+  r.holidayViewYear  = y;
+  r.holidayViewMonth = m;
+  renderCard(ri);
+}
+
+function jumpHolidayCal(ri, part, val) {
+  const r = resourceData[ri];
+  if (part === 'month') r.holidayViewMonth = parseInt(val);
+  if (part === 'year')  r.holidayViewYear  = parseInt(val);
+  renderCard(ri);
+}
+
+function clearHolidaysInMonth(ri, y, m) {
+  const r = resourceData[ri];
+  if (!(r.holidays instanceof Set)) r.holidays = new Set(r.holidays || []);
+  [...r.holidays].forEach(ds => {
+    const [hy, hm] = ds.split('-').map(Number);
+    if (hy === y && (hm - 1) === m) r.holidays.delete(ds);
+  });
+  r.remDaysOverride = null;
+  renderCard(ri); calc();
 }
 
 /* ═══════════════════════════════════════════════════════
